@@ -10,6 +10,7 @@ import multer from 'multer';
 import { v2 as cloudinary } from 'cloudinary';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createNebulaRouter } from './routes/nebulaSync.js';
 
 // Load environment variables
 dotenv.config();
@@ -213,6 +214,16 @@ const initializeDatabase = async () => {
       )
     `);
 
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS transaction_logs (
+        tx_id VARCHAR(255) PRIMARY KEY,
+        wallet_address VARCHAR(255) REFERENCES wallet_rewards(wallet_address),
+        amount INTEGER NOT NULL,
+        action_type VARCHAR(50) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
     console.log('Database initialized successfully');
   } catch (error) {
     console.error('Database initialization error:', error);
@@ -223,6 +234,9 @@ const initializeDatabase = async () => {
 initializeDatabase();
 
 // Routes
+
+// Mount secure webhook pipeline for Nebula integration
+app.use('/api/v1/nebula', createNebulaRouter(pool));
 
 // Health check
 app.get('/api/health', (req, res) => {
