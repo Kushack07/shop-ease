@@ -138,7 +138,7 @@ const Footer: React.FC = () => {
         <div className="border-t border-secondary-800 mt-8 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
             <div className="text-secondary-400 text-sm">
-              © 2024 ShopEase. All rights reserved.
+              © 2026 ShopEase. All rights reserved.
             </div>
             <div className="flex space-x-6">
               <Link to="/privacy" className="text-secondary-400 hover:text-white transition-colors text-sm">

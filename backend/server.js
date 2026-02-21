@@ -53,7 +53,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Multer configuration for file uploads
 const storage = multer.memoryStorage();
-const upload = multer({ 
+const upload = multer({
   storage,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
@@ -201,6 +201,15 @@ const initializeDatabase = async () => {
         product_id INTEGER REFERENCES products(id) ON DELETE CASCADE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(user_id, product_id)
+      )
+    `);
+
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS wallet_rewards (
+        user_id INTEGER REFERENCES users(id),
+        wallet_address VARCHAR(255) PRIMARY KEY,
+        stardust_balance INTEGER DEFAULT 0,
+        last_sync TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
 
@@ -455,7 +464,7 @@ app.post('/api/upload/image', upload.single('image'), async (req, res) => {
 app.get('/api/auth/profile', authenticateToken, async (req, res) => {
   try {
     const result = await pool.query('SELECT id, email, first_name, last_name, role, avatar, created_at FROM users WHERE id = $1', [req.user.userId]);
-    
+
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
@@ -501,6 +510,119 @@ app.get('/api/admin/dashboard', authenticateToken, requireAdmin, async (req, res
     });
   } catch (error) {
     console.error('Dashboard error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+// Nebula Integration Routes
+app.post('/api/integration/link-wallet', async (req, res) => {
+  try {
+    const { email, wallet_address } = req.body;
+
+    // Find user by email
+    const userResult = await pool.query('SELECT id FROM users WHERE email = $1', [email]);
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    const userId = userResult.rows[0].id;
+
+    // Insert or update wallet
+    await pool.query(
+      `INSERT INTO wallet_rewards (user_id, wallet_address) 
+       VALUES ($1, $2) 
+       ON CONFLICT (wallet_address) 
+       DO UPDATE SET user_id = $1`,
+      [userId, wallet_address]
+    );
+
+    res.json({ success: true, message: 'Wallet linked successfully' });
+  } catch (error) {
+    console.error('Link wallet error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+app.post('/api/integration/sync-rewards', async (req, res) => {
+  try {
+    const { wallet_address, stardust_earned } = req.body;
+
+    const result = await pool.query(
+      `UPDATE wallet_rewards 
+       SET stardust_balance = stardust_balance + $1, last_sync = CURRENT_TIMESTAMP 
+       WHERE wallet_address = $2 
+       RETURNING stardust_balance`,
+      [stardust_earned, wallet_address]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Wallet not found. Link wallet first.' });
+    }
+
+    res.json({ success: true, balance: result.rows[0].stardust_balance });
+  } catch (error) {
+    console.error('Sync rewards error:', error);
+    res.status(500).json({ success: false, message: 'Internal server error' });
+  }
+});
+
+app.post('/api/integration/redeem', async (req, res) => {
+  try {
+    const { wallet_address, product_id, stardust_cost } = req.body;
+
+    // Verification 1: Get wallet and user
+    const walletResult = await pool.query('SELECT user_id, stardust_balance FROM wallet_rewards WHERE wallet_address = $1', [wallet_address]);
+    if (walletResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Wallet not found' });
+    }
+
+    const { user_id, stardust_balance } = walletResult.rows[0];
+
+    if (stardust_balance < stardust_cost) {
+      return res.status(400).json({ success: false, message: 'Insufficient stardust balance' });
+    }
+
+    // Verification 2: Get product
+    const productResult = await pool.query('SELECT price FROM products WHERE id = $1 AND is_active = true', [product_id]);
+    if (productResult.rows.length === 0) {
+      return res.status(404).json({ success: false, message: 'Product not found or inactive' });
+    }
+
+    // Begin Transaction
+    await pool.query('BEGIN');
+
+    // 1. Deduct Stardust
+    await pool.query(
+      'UPDATE wallet_rewards SET stardust_balance = stardust_balance - $1 WHERE wallet_address = $2',
+      [stardust_cost, wallet_address]
+    );
+
+    // 2. Create Order
+    const orderResult = await pool.query(
+      `INSERT INTO orders (user_id, total, subtotal, status, payment_status, payment_method) 
+       VALUES ($1, $2, $2, 'processing', 'paid', 'stardust_points') RETURNING id`,
+      [user_id, 0] // 0 total because paid via points
+    );
+    const orderId = orderResult.rows[0].id;
+
+    // 3. Create Order Item
+    await pool.query(
+      'INSERT INTO order_items (order_id, product_id, quantity, price, total) VALUES ($1, $2, 1, $3, $3)',
+      [orderId, product_id, productResult.rows[0].price]
+    );
+
+    // Commit Transaction
+    await pool.query('COMMIT');
+
+    res.json({
+      success: true,
+      message: 'Product redeemed successfully',
+      order_id: orderId,
+      remaining_balance: stardust_balance - stardust_cost
+    });
+
+  } catch (error) {
+    await pool.query('ROLLBACK');
+    console.error('Redeem error:', error);
     res.status(500).json({ success: false, message: 'Internal server error' });
   }
 });

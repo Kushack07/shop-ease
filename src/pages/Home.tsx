@@ -18,7 +18,7 @@ const Home: React.FC = () => {
   const heroBanners = [
     {
       id: 1,
-      title: "Summer Collection 2024",
+      title: "Summer Collection 2026",
       subtitle: "Discover the latest trends in fashion",
       description: "Get up to 50% off on selected items",
       image: "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1200&h=600&fit=crop",
@@ -100,9 +100,8 @@ const Home: React.FC = () => {
         {heroBanners.map((banner, index) => (
           <div
             key={banner.id}
-            className={`absolute inset-0 transition-opacity duration-1000 ${
-              index === currentSlide ? 'opacity-100' : 'opacity-0'
-            }`}
+            className={`absolute inset-0 transition-opacity duration-1000 ${index === currentSlide ? 'opacity-100' : 'opacity-0'
+              }`}
           >
             <div className="relative h-full">
               <img
@@ -156,9 +155,8 @@ const Home: React.FC = () => {
             <button
               key={index}
               onClick={() => setCurrentSlide(index)}
-              className={`w-3 h-3 rounded-full transition-all duration-200 ${
-                index === currentSlide ? 'bg-white' : 'bg-white bg-opacity-50'
-              }`}
+              className={`w-3 h-3 rounded-full transition-all duration-200 ${index === currentSlide ? 'bg-white' : 'bg-white bg-opacity-50'
+                }`}
             />
           ))}
         </div>
