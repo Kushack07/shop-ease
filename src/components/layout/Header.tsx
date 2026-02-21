@@ -74,7 +74,7 @@ const Header: React.FC = () => {
           {/* Right Side Actions */}
           <div className="flex items-center space-x-4">
             {/* Nebula Button */}
-            <a href="http://localhost:8080/" target="_blank" rel="noopener noreferrer" className="flex items-center space-x-1.5 p-1.5 sm:pl-2 sm:pr-3 bg-indigo-50 text-indigo-600 rounded-full hover:bg-indigo-100 transition-colors border border-indigo-200 shadow-sm">
+            <a href={(import.meta as any).env.VITE_NEBULA_URL || "http://localhost:8080/"} target="_blank" rel="noopener noreferrer" className="flex items-center space-x-1.5 p-1.5 sm:pl-2 sm:pr-3 bg-indigo-50 text-indigo-600 rounded-full hover:bg-indigo-100 transition-colors border border-indigo-200 shadow-sm">
               <Sparkles className="h-4 w-4" />
               <span className="hidden sm:block text-sm font-bold">Nebula AI</span>
             </a>
@@ -128,7 +128,7 @@ const Header: React.FC = () => {
         {isMenuOpen && (
           <div className="md:hidden border-t border-secondary-200 py-4 px-2">
             <nav className="flex flex-col space-y-4">
-              <a href="http://localhost:8080/" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center space-x-2 w-full p-2.5 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-200 font-bold mb-2">
+              <a href={(import.meta as any).env.VITE_NEBULA_URL || "http://localhost:8080/"} target="_blank" rel="noopener noreferrer" className="flex items-center justify-center space-x-2 w-full p-2.5 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-200 font-bold mb-2">
                 <Sparkles className="h-5 w-5" />
                 <span>Launch Nebula AI</span>
               </a>
